@@ -1,4 +1,4 @@
-"""The self-correcting RAG graph required by the assignment."""
+"""The self-correcting RAG graph."""
 
 from __future__ import annotations
 
@@ -28,30 +28,58 @@ def llm() -> ChatOllama:
 
 def analyse_query(state: RAGState) -> RAGState:
     attempt = state.get("retries", 0) + 1
-    prompt = "Rewrite this technical documentation question as a concise semantic-search query. Keep product names and error messages. This is retrieval attempt {attempt}; when attempt is greater than one, use different useful terms than the previous wording. Return only the rewritten query.\n\nQuestion: {question}".format(question=state["question"], attempt=attempt)
-    return {"search_query": llm().invoke(prompt).content.strip(), "retries": state.get("retries", 0)}
+    prompt = "Rewrite this technical documentation question as a concise semantic-search query. Keep product names and error messages. This is retrieval attempt {attempt}; when attempt is greater than one, use different useful terms than the previous wording. Return only the rewritten query.\n\nQuestion: {question}".format(question=state.get("question", ""), attempt=attempt)
+    content = llm().invoke(prompt).content
+    if isinstance(content, str):
+        search_query = content.strip()
+    else:
+        search_query = "".join(
+            part if isinstance(part, str) else str(part.get("text", ""))
+            for part in content
+        ).strip()
+    return {"search_query": search_query, "retries": state.get("retries", 0)}
 
 
 def retrieve_documents(state: RAGState) -> RAGState:
-    return {"retrieved_documents": get_vector_store().similarity_search(state["search_query"], k=settings.retrieval_k)}
+    search_query = state.get("search_query", state.get("question", ""))
+    return {"retrieved_documents": get_vector_store().similarity_search(search_query, k=settings.retrieval_k)}
 
 
 def grade_documents(state: RAGState) -> RAGState:
     relevant: list[Document] = []
     for document in state.get("retrieved_documents", []):
-        prompt = "Decide whether the document excerpt can help answer the question. Reply with exactly YES or NO. Be strict: a shared word alone is not enough.\n\nQuestion: {question}\nExcerpt: {excerpt}".format(question=state["question"], excerpt=document.page_content)
-        if llm().invoke(prompt).content.strip().upper().startswith("YES"):
+        prompt = "Decide whether the document excerpt can help answer the question. Reply with exactly YES or NO. Be strict: a shared word alone is not enough.\n\nQuestion: {question}\nExcerpt: {excerpt}".format(question=state.get("question", ""), excerpt=document.page_content)
+        content = llm().invoke(prompt).content
+        response = (
+            content
+            if isinstance(content, str)
+            else "".join(
+                part if isinstance(part, str) else str(part.get("text", ""))
+                for part in content
+            )
+        )
+        if response.strip().upper().startswith("YES"):
             relevant.append(document)
     return {"relevant_documents": relevant}
 
 
 def generate_answer(state: RAGState) -> RAGState:
-    context = "\n\n".join("[Source: {source}, chunk {chunk}]\n{text}".format(source=document.metadata["source_name"], chunk=document.metadata["chunk_index"], text=document.page_content) for document in state["relevant_documents"])
-    prompt = "Answer only from the supplied technical-documentation context. If the context does not support a detail, say so plainly. End each factual paragraph with citations in the form [source name, chunk N]. Do not invent sources.\n\nQuestion: {question}\n\nContext:\n{context}".format(question=state["question"], context=context)
-    return {"answer": llm().invoke(prompt).content.strip()}
+    relevant_documents = state.get("relevant_documents", [])
+    context = "\n\n".join("[Source: {source}, chunk {chunk}]\n{text}".format(source=document.metadata["source_name"], chunk=document.metadata["chunk_index"], text=document.page_content) for document in relevant_documents)
+    prompt = "Answer only from the supplied technical-documentation context. If the context does not support a detail, say so plainly. End each factual paragraph with citations in the form [source name, chunk N]. Do not invent sources.\n\nQuestion: {question}\n\nContext:\n{context}".format(question=state.get("question", ""), context=context)
+    content = llm().invoke(prompt).content
+    answer = (
+        content.strip()
+        if isinstance(content, str)
+        else "".join(
+            part if isinstance(part, str) else str(part.get("text", ""))
+            for part in content
+        ).strip()
+    )
+    return {"answer": answer}
 
 
-def no_answer(_: RAGState) -> RAGState:
+def no_answer(state: RAGState) -> RAGState:
     return {"answer": "I don’t know based on the indexed documentation. Try a more specific question or ingest relevant documentation."}
 
 

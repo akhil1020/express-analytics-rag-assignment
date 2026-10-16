@@ -51,4 +51,3 @@ curl -X POST http://127.0.0.1:8000/query -H "Content-Type: application/json" -d 
 - Ollama is running locally and the configured chat and embedding models have been pulled.
 - Uploaded PDFs contain selectable text; OCR for scanned pages is intentionally out of scope.
 - The API is local for this take-home exercise. URL ingestion should sit behind network controls in production.
-"# express-analytics-rag-assignment" 

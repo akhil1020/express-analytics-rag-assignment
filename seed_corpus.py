@@ -1,4 +1,4 @@
-"""Index the small technical-documentation corpus included with this repository."""
+"""Index the small technical-documentation corpus incl"""
 
 from pathlib import Path
 

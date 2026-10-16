@@ -10,7 +10,7 @@ from store import index_documents
 router = APIRouter(prefix="/ingest", tags=["ingestion"])
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def ingest_documents(
     files: Annotated[list[UploadFile] | None, File(description="PDF, TXT, Markdown, or HTML files")] = None,
     urls: Annotated[list[str] | None, Form(description="Public URLs to ingest")] = None,
