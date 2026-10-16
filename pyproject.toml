@@ -1,0 +1,14 @@
+[project]
+name = "express-analytics"
+version = "0.1.0"
+description = "A self-correcting LangGraph RAG assistant for technical documentation"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.143.2",
+    "chromadb>=1.0.0",
+    "langchain-chroma>=0.2.0",
+    "langchain-ollama>=0.3.0",
+    "langgraph>=0.2.0",
+    "pypdf>=5.0.0",
+]
